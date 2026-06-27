@@ -357,6 +357,8 @@ _CATEGORY_NUMBERS: dict[str, str] = {
 
 def _validate_json(data: dict[str, Any], schema_path: Path) -> list[str]:
     """Validate data against a JSON schema. Returns list of error messages (empty = valid)."""
+    if not schema_path.exists():
+        return [f"schema file not found: {schema_path}"]
     from jsonschema import Draft202012Validator
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -749,7 +751,7 @@ def _generate_expected_via_adapter(
     """
     import tempfile
 
-    from orchestrator.runner import _validate_result_schema
+    from orchestrator.runner import validate_result_schema
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_output = Path(tmpdir)
@@ -776,7 +778,7 @@ def _generate_expected_via_adapter(
             return None
 
         data = json.loads(result_path.read_text(encoding="utf-8"))
-        if not _validate_result_schema(data, schema_path):
+        if not validate_result_schema(data, schema_path):
             click.echo("  adapter result.json failed schema validation", err=True)
             return None
 

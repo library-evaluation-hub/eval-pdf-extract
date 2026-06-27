@@ -452,6 +452,7 @@ GPU / IO 敏感 adapter 可通过 `--serialize <adapter_id>` 单独排队。
 | Web UI                                     | FastAPI + 静态 SPA            | 体积小、零构建、单文件可分发；如未来需要复杂交互再升级。                              |
 | 持久化                                      | 文件树 + sqlite                | 文件树便于 diff / 归档；sqlite 便于 webui 查询。                                      |
 | 并发                                        | 线程池调度 subprocess          | 简单可靠；adapter 自身已是独立进程，无需 asyncio。                                    |
+| 超时测试策略                                | 真实等待 `timeout_seconds + 5` | Python 的 `time.sleep()` / `Popen.wait()` 是 OS 级阻塞，mock `time.monotonic` 只能让 deadline 检查通过，但无法让 `wait()` 提前返回。与 Jest 的 `useFakeTimers({ advanceTimers: true })` 不同，Python 社区（`freezegun` / `time-machine`）没有能让阻塞调用快进的方案。当前做法：超时测试用 `timeout_seconds=1`，真实等待 ~6s。 |
 
 ---
 

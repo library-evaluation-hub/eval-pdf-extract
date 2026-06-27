@@ -24,7 +24,7 @@ from orchestrator.models import AdapterEntry, FixtureEntry, RunResult
 _DEFAULT_CONFIG: dict[str, Any] = {"ocr": {"enabled": True}}
 
 
-def _validate_result_schema(
+def validate_result_schema(
     result: dict[str, Any],
     schema_path: Path,
 ) -> bool:
@@ -180,7 +180,7 @@ def run_one(
     result_data = load_json(result_path)
     result_valid = False
     if result_data is not None:
-        result_valid = _validate_result_schema(result_data, schema_path)
+        result_valid = validate_result_schema(result_data, schema_path)
 
     # Load meta.json
     meta_data = load_json(output_dir / "meta.json")
