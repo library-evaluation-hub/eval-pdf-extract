@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eval-pdf-extract"
+version = "0.1.0"
+description = "Cross-language standardized benchmark for PDF extraction libraries"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "TBD" }
+authors = [{ name = "library-evaluation-hub" }]
+keywords = ["pdf", "evaluation", "benchmark", "extraction"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Text Processing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "jsonschema>=4.21",
+    "psutil>=5.9",
+    "rich>=13.7",
+    "pyyaml>=6.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+webui = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+]
+all = ["eval-pdf-extract[webui,dev]"]
+
+[project.urls]
+Homepage = "https://github.com/library-evaluation-hub/eval-pdf-extract"
+
+[project.scripts]
+orchestrator = "orchestrator.cli:main"
+webui = "webui.backend.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["orchestrator*", "webui*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["fastapi", "fastapi.*", "uvicorn", "uvicorn.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

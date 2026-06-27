@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://library-evaluation-hub/eval-pdf-extract/adapter-registry.schema.json",
+  "title": "Adapter Registry",
+  "description": "adapters/registry.json 的 schema。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "adapters"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "adapters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/adapter" }
+    }
+  },
+  "$defs": {
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "command", "language"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*@[0-9][0-9a-zA-Z._+-]*$",
+          "description": "唯一 id，必须含版本。建议格式 '<lang>-<lib>@<version>'。"
+        },
+        "language": {
+          "type": "string",
+          "enum": [
+            "python", "java", "javascript", "typescript",
+            "go", "rust", "cpp", "csharp", "ruby", "kotlin", "other"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "description": "PATH 中可解析的可执行名。"
+        },
+        "description": { "type": "string" },
+        "homepage": { "type": "string", "format": "uri" },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 60
+        },
+        "supports_ocr": { "type": "boolean", "default": false },
+        "disabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "临时下架而不删除条目。"
+        }
+      }
+    }
+  }
+}

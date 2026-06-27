@@ -1,0 +1,28 @@
+// # 每个 fixture 的 meta.json 模板
+// # 复制本文件到 fixtures/<id>/meta.json 并按实际情况填
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "fixture_id": "01_plain_text__lorem",
+  "category": "plain_text",
+  "tags": ["english", "single_column", "serif"],
+  "difficulty": "easy",
+  "expected_page_count": 1,
+  "input_pdf_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "source": {
+    "title": "Lorem Ipsum Sample",
+    "url": "https://example.com/source",
+    "license": "CC0-1.0",
+    "note": "公开合成样本；非真实文档。"
+  },
+  "ground_truth_authors": [
+    "github-user-a", "github-user-b"
+  ],
+  "revisions": [
+    {
+      "date": "2026-06-26",
+      "author": "github-user-a",
+      "note": "initial version"
+    }
+  ]
+}

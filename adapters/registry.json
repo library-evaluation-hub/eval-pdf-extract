@@ -1,0 +1,114 @@
+{
+  "$schema": "./registry.schema.json",
+  "schema_version": "1.0",
+  "adapters": [
+    {
+      "id": "python-pymupdf@1.24.0",
+      "language": "python",
+      "command": "python-pymupdf",
+      "description": "PyMuPDF / fitz for Python",
+      "homepage": "https://github.com/pymupdf/PyMuPDF",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "python-pdfplumber@0.11.0",
+      "language": "python",
+      "command": "python-pdfplumber",
+      "description": "pdfplumber (built on pdfminer.six)",
+      "homepage": "https://github.com/jsvine/pdfplumber",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "python-pdfminer@20231228",
+      "language": "python",
+      "command": "python-pdfminer",
+      "description": "pdfminer.six",
+      "homepage": "https://github.com/pdfminer/pdfminer.six",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "java-pdfbox@3.0.2",
+      "language": "java",
+      "command": "java-pdfbox",
+      "description": "Apache PDFBox 3.x",
+      "homepage": "https://pdfbox.apache.org/",
+      "timeout_seconds": 90,
+      "supports_ocr": false
+    },
+    {
+      "id": "java-tika@2.9.2",
+      "language": "java",
+      "command": "java-tika",
+      "description": "Apache Tika",
+      "homepage": "https://tika.apache.org/",
+      "timeout_seconds": 120,
+      "supports_ocr": true
+    },
+    {
+      "id": "nodejs-pdf-parse@1.1.1",
+      "language": "javascript",
+      "command": "nodejs-pdf-parse",
+      "description": "pdf-parse (modest pdfjs fork)",
+      "homepage": "https://github.com/modesty/pdf-parse",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "nodejs-pdfjs@4.0.379",
+      "language": "javascript",
+      "command": "nodejs-pdfjs",
+      "description": "Mozilla pdf.js (Node build)",
+      "homepage": "https://github.com/mozilla/pdf.js",
+      "timeout_seconds": 90,
+      "supports_ocr": false
+    },
+    {
+      "id": "go-ledongthuc@0.0.0",
+      "language": "go",
+      "command": "go-ledongthuc",
+      "description": "ledongthuc/pdf (Go)",
+      "homepage": "https://github.com/ledongthuc/pdf",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "rust-pdf-extract@0.7.0",
+      "language": "rust",
+      "command": "rust-pdf-extract",
+      "description": "pdf-extract (Rust, on top of lopdf)",
+      "homepage": "https://github.com/jrmuizel/pdf-extract",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "dotnet-pdfpig@0.1.9",
+      "language": "csharp",
+      "command": "dotnet-pdfpig",
+      "description": "PdfPig (.NET)",
+      "homepage": "https://github.com/UglyToad/PdfPig",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
+      "id": "dotnet-itext@8.0.5",
+      "language": "csharp",
+      "command": "dotnet-itext",
+      "description": "iText 8 (Community)",
+      "homepage": "https://itextpdf.com/",
+      "timeout_seconds": 90,
+      "supports_ocr": false
+    },
+    {
+      "id": "cpp-mupdf@1.24.0",
+      "language": "cpp",
+      "command": "cpp-mupdf",
+      "description": "MuPDF C++ bindings",
+      "homepage": "https://mupdf.com/",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    }
+  ]
+}
