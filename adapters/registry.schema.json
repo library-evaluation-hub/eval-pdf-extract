@@ -11,7 +11,8 @@
     "adapters": {
       "type": "array",
       "items": { "$ref": "#/$defs/adapter" }
-    }
+    },
+    "$schema": { "type": "string" }
   },
   "$defs": {
     "adapter": {
