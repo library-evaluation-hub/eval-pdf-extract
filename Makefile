@@ -22,7 +22,7 @@ ifeq ($(OS),Windows_NT)
     DETECTED_OS := Windows
     POWERSHELL := pwsh
     PS_RUN := $(POWERSHELL) -NoProfile -ExecutionPolicy Bypass
-    NULLDEV := nul
+    NULLDEV := NUL
 else
     DETECTED_OS := Unix
     NULLDEV := /dev/null
@@ -32,8 +32,8 @@ endif
 UV ?= uv
 
 # ---- Phony -----------------------------------------------------------
-.PHONY: help info install check-env lint test integration-test run webui \
-        validate-corpus lint-adapter clean
+.PHONY: help info install check-env lint test integration-test run run-adapter webui \
+        validate-corpus add-fixture lint-adapter clean
 
 # ---- Help ------------------------------------------------------------
 help:                       ## Show this help
@@ -44,8 +44,10 @@ help:                       ## Show this help
 	@echo "  test                    Run Python unit tests"
 	@echo "  integration-test        Run real adapter x fixture (slow)"
 	@echo "  run                     Run benchmark with all adapters on all fixtures"
+	@echo "  run-adapter ADAPTER=.. Run benchmark for a single adapter on 01_* fixtures"
 	@echo "  webui                   Start webui server (default port 8765)"
 	@echo "  validate-corpus         Validate corpus/manifest.json vs fixtures on disk"
+	@echo "  add-fixture             Create a fixture from a PDF (use: make add-fixture INPUT=.. CATEGORY=.. SLUG=..)"
 	@echo "  lint-adapter ADAPTER=.. Static check that an adapter conforms to the contract"
 	@echo "  clean                   Remove build artifacts and results/ contents"
 	@echo "  info                    Show detected environment"
@@ -84,12 +86,41 @@ integration-test:            ## Run real adapter x fixture smoke test (slow)
 run:                        ## Run benchmark with all adapters on all fixtures
 	$(UV) run python -m orchestrator run --corpus corpus/ --adapters all
 
+run-adapter:                ## Run benchmark for ADAPTER=<id> on 01_* fixtures (version optional)
+ifndef ADAPTER
+	$(error Usage: make run-adapter ADAPTER=<adapter-id>  e.g. make run-adapter ADAPTER=python-pymupdf)
+endif
+	$(UV) run python -m orchestrator run --corpus corpus/ --adapters $(ADAPTER) --fixture-glob "01_*" --workers 1
+
 webui:                      ## Start webui server
 	$(UV) run python -m webui.backend.main --host 127.0.0.1 --port 8765
 
 # ---- Validation ------------------------------------------------------
 validate-corpus:            ## Validate corpus/manifest.json vs fixtures on disk
 	$(UV) run python -m orchestrator validate-corpus
+
+add-fixture:                ## Create a fixture from a PDF (CONFIG=yaml + optional overrides, or INPUT=.. CATEGORY=.. SLUG=..)
+ifdef CONFIG
+	$(UV) run python -m orchestrator add-fixture --config $(CONFIG) \
+		$(if $(INPUT),--input $(INPUT)) $(if $(CATEGORY),--category $(CATEGORY)) \
+		$(if $(SLUG),--slug $(SLUG)) $(if $(TITLE),--title "$(TITLE)") \
+		$(if $(LICENSE),--license $(LICENSE)) $(if $(AUTHOR),--author $(AUTHOR)) \
+		$(if $(TAGS),--tags "$(TAGS)") $(if $(ADAPTER),--adapter $(ADAPTER))
+else
+ifndef INPUT
+	$(error Usage: make add-fixture CONFIG=<yaml> [INPUT=<pdf> ...] OR make add-fixture INPUT=<pdf> CATEGORY=<category> SLUG=<slug>)
+endif
+ifndef CATEGORY
+	$(error Usage: make add-fixture CONFIG=<yaml> [INPUT=<pdf> ...] OR make add-fixture INPUT=<pdf> CATEGORY=<category> SLUG=<slug>)
+endif
+ifndef SLUG
+	$(error Usage: make add-fixture CONFIG=<yaml> [INPUT=<pdf> ...] OR make add-fixture INPUT=<pdf> CATEGORY=<category> SLUG=<slug>)
+endif
+	$(UV) run python -m orchestrator add-fixture --input $(INPUT) --category $(CATEGORY) --slug $(SLUG) \
+		$(if $(TITLE),--title "$(TITLE)") $(if $(LICENSE),--license $(LICENSE)) \
+		$(if $(AUTHOR),--author $(AUTHOR)) $(if $(TAGS),--tags "$(TAGS)") \
+		$(if $(ADAPTER),--adapter $(ADAPTER))
+endif
 
 lint-adapter:               ## Static check that an adapter conforms to the contract
 ifndef ADAPTER

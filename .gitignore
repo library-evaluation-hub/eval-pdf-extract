@@ -59,3 +59,4 @@ results/*
 # 临时
 *.tmp
 *.bak
+nul

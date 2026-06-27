@@ -70,15 +70,51 @@ def compute_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _parse_version(version: str) -> tuple[int, ...]:
+    """Parse a version string like '1.24.0' into (1, 24, 0) for comparison."""
+    parts: list[int] = []
+    for part in version.split("."):
+        try:
+            parts.append(int(part))
+        except ValueError:
+            parts.append(0)
+    return tuple(parts)
+
+
 def filter_adapters(
     all_adapters: list[AdapterEntry], selection: str
 ) -> list[AdapterEntry]:
-    """Filter adapters by 'all' or comma-separated ids. Skips disabled."""
+    """Filter adapters by 'all' or comma-separated ids. Skips disabled.
+
+    Each selection id can be:
+    - Full id with version: 'python-pymupdf@1.24.0' → exact match
+    - Name without version: 'python-pymupdf' → matches latest version
+    """
     active = [a for a in all_adapters if not a.disabled]
     if selection == "all":
         return active
-    ids = {s.strip() for s in selection.split(",") if s.strip()}
-    return [a for a in active if a.id in ids]
+
+    selections = list(dict.fromkeys(s.strip() for s in selection.split(",") if s.strip()))
+    result: list[AdapterEntry] = []
+    seen_ids: set[str] = set()
+
+    for sel in selections:
+        if "@" in sel:
+            # Exact id match
+            for a in active:
+                if a.id == sel and a.id not in seen_ids:
+                    result.append(a)
+                    seen_ids.add(a.id)
+        else:
+            # Version-less: match latest version of this name
+            candidates = [a for a in active if a.id.split("@")[0] == sel]
+            if candidates:
+                latest = max(candidates, key=lambda a: _parse_version(a.id.split("@")[1]))
+                if latest.id not in seen_ids:
+                    result.append(latest)
+                    seen_ids.add(latest.id)
+
+    return result
 
 
 def filter_fixtures(

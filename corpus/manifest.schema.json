@@ -69,6 +69,7 @@
         "source": {
           "type": "object",
           "properties": {
+            "title": { "type": "string" },
             "url": { "type": "string" },
             "license": { "type": "string" }
           }

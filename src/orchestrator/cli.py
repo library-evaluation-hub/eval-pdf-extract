@@ -6,16 +6,19 @@ Commands:
     run               Run benchmark with all/specified adapters on all/specified fixtures.
     validate-corpus   Validate corpus/manifest.json vs fixtures on disk.
     lint-adapter      Static check that an adapter conforms to the contract.
+    add-fixture       Create a new fixture from a PDF file.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -24,6 +27,9 @@ from orchestrator.models import AdapterEntry, FixtureEntry, RunResult, ScoreResu
 _REPO_ROOT: Path = Path(__file__).resolve().parent.parent.parent
 _LINT_SCRIPT: Path = _REPO_ROOT / "scripts" / "lint_adapter.py"
 _SCHEMA_PATH: Path = _REPO_ROOT / "contract" / "result-schema.json"
+_META_SCHEMA_PATH: Path = _REPO_ROOT / "corpus" / "fixture-meta.schema.json"
+_CONFIG_SCHEMA_PATH: Path = _REPO_ROOT / "corpus" / "add-fixture-config.schema.json"
+_MANIFEST_SCHEMA_PATH: Path = _REPO_ROOT / "corpus" / "manifest.schema.json"
 
 
 @click.group()
@@ -143,7 +149,6 @@ def run(
         if expected is not None:
             sr = score(rr, expected, fixture.category)
         else:
-            from orchestrator.models import ScoreResult
             sr = ScoreResult(
                 adapter_id=adapter.id,
                 fixture_id=fixture.id,
@@ -259,19 +264,42 @@ def validate_corpus(corpus: str) -> None:
                         f"{fx.id}: page_count={exp_pc} but "
                         f"pages array has {exp_pages} entries"
                     )
+                # Check pages array length vs manifest only when
+                # metadata.page_count is absent (otherwise check 1 covers it)
+                elif exp_pages != fx.expected_page_count:
+                    errors.append(
+                        f"{fx.id}: pages array has {exp_pages} entries "
+                        f"but manifest expected_page_count={fx.expected_page_count}"
+                    )
             except json.JSONDecodeError as e:
                 errors.append(f"{fx.id}: expected.json invalid JSON: {e}")
 
     # Check for fixture dirs on disk not in manifest
     fixtures_dir = corpus_dir / "fixtures"
+    orphans: list[str] = []
     if fixtures_dir.exists():
         manifest_ids = {fx.id for fx in fixtures}
         on_disk = {
             d.name for d in fixtures_dir.iterdir() if d.is_dir() and not d.name.startswith(".")
         }
-        orphaned = on_disk - manifest_ids
-        for name in sorted(orphaned):
-            errors.append(f"{name}: fixture directory exists but not in manifest")
+        for name in sorted(on_disk - manifest_ids):
+            # Check if dir is empty (only .gitkeep or truly empty)
+            dir_path = fixtures_dir / name
+            real_files = [
+                f for f in dir_path.iterdir()
+                if f.name != ".gitkeep" and not f.name.startswith(".")
+            ]
+            if not real_files:
+                orphans.append(name)
+            else:
+                errors.append(f"{name}: fixture directory has files but not in manifest")
+
+    if orphans:
+        click.echo(
+            f"INFO: {len(orphans)} empty placeholder dir(s) not in manifest "
+            f"(harmless): {', '.join(orphans)}",
+            err=True,
+        )
 
     if errors:
         click.echo(f"FAIL: {len(errors)} error(s) in {checked} fixture(s):", err=True)
@@ -289,8 +317,8 @@ def validate_corpus(corpus: str) -> None:
 def lint_adapter(adapter_id: str | None, check_command: bool, check_help: bool) -> None:
     """Static check that an adapter conforms to the contract.
 
-    By default --check-command and --check-help are enabled, matching the
-    behavior of ``make lint-adapter`` (scripts/lint-adapter.sh / .ps1).
+    Pass --check-command to verify the adapter's command is in PATH.
+    Pass --check-help to also run <cmd> --help (implies --check-command).
     """
     if not _LINT_SCRIPT.exists():
         click.echo(
@@ -308,6 +336,327 @@ def lint_adapter(adapter_id: str | None, check_command: bool, check_help: bool) 
         args.append("--check-help")
     result = subprocess.run(args, check=False)
     sys.exit(result.returncode)
+
+
+_VALID_CATEGORIES = (
+    "plain_text", "multi_column", "table", "form",
+    "scanned", "multilang", "edge",
+)
+
+_CATEGORY_NUMBERS: dict[str, str] = {
+    "plain_text": "01",
+    "multi_column": "02",
+    "table": "03",
+    "form": "04",
+    "scanned": "05",
+    "multilang": "06",
+    "edge": "07",
+}
+
+
+def _validate_json(data: dict[str, Any], schema_path: Path) -> list[str]:
+    """Validate data against a JSON schema. Returns list of error messages (empty = valid)."""
+    from jsonschema import Draft202012Validator
+
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    return [f"{'.'.join(str(p) for p in e.path) or 'root'}: {e.message}" for e in errors]
+
+
+@cli.command("add-fixture")
+@click.option("--input", "input_pdf", type=Path, default=None,
+              help="Path to the PDF file. Overrides config.")
+@click.option("--category", default=None,
+              type=click.Choice(_VALID_CATEGORIES),
+              help="Fixture category. Overrides config.")
+@click.option("--slug", default=None,
+              help="Short slug for fixture id. Overrides config.")
+@click.option("--title", default=None, help="Title of the source document. Overrides config.")
+@click.option("--license", "license_str", default=None,
+              help="License of the source document. Overrides config.")
+@click.option("--corpus", default=None,
+              help="Path to corpus directory. Overrides config.")
+@click.option("--author", default=None, help="Ground truth author name. Overrides config.")
+@click.option("--difficulty", default=None,
+              type=click.Choice(["easy", "medium", "hard"]),
+              help="Difficulty level. Overrides config.")
+@click.option("--tags", default=None, help="Comma-separated tags. Overrides config.")
+@click.option("--adapter", default=None,
+              help="Adapter id to use for generating expected.json (e.g. python-pymupdf). "
+                   "Overrides config. Defaults to python-pymupdf.")
+@click.option("--config", "config_path", default=None, type=Path,
+              help="Path to YAML config file for add-fixture defaults.")
+def add_fixture(
+    input_pdf: Path | None,
+    category: str | None,
+    slug: str | None,
+    title: str | None,
+    license_str: str | None,
+    corpus: str | None,
+    author: str | None,
+    difficulty: str | None,
+    tags: str | None,
+    adapter: str | None,
+    config_path: Path | None,
+) -> None:
+    """Create a new fixture from a PDF file.
+
+    Reads defaults from a YAML config file (--config), with CLI args overriding.
+    Uses an adapter subprocess to generate expected.json (not hardcoded to PyMuPDF).
+
+    Config file format (e.g. corpus/add-fixture.yaml):
+    \b
+        input: path/to/resume.pdf
+        category: plain_text
+        slug: resume
+        title: "Sample Resume"
+        license: CC0-1.0
+        author: your-name
+        difficulty: easy
+        tags: english,single_column
+        adapter: python-pymupdf
+        corpus: corpus/
+    """
+    import yaml
+
+    # Load config file if provided, else empty
+    cfg: dict[str, Any] = {}
+    if config_path is not None:
+        if not config_path.exists():
+            click.echo(f"ERROR: config file not found: {config_path}", err=True)
+            sys.exit(1)
+        cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        # Validate config against schema
+        cfg_errors = _validate_json(cfg, _CONFIG_SCHEMA_PATH)
+        if cfg_errors:
+            click.echo("ERROR: config file validation failed:", err=True)
+            for e in cfg_errors:
+                click.echo(f"  {e}", err=True)
+            sys.exit(1)
+
+    # Merge: CLI args override config file values
+    input_pdf = Path(input_pdf) if input_pdf else Path(cfg["input"]) if "input" in cfg else None
+    category = category or cfg.get("category")
+    slug = slug or cfg.get("slug")
+    title = title or cfg.get("title", "")
+    license_str = license_str or cfg.get("license", "unknown")
+    corpus = corpus or cfg.get("corpus", "corpus/")
+    author = author or cfg.get("author", "")
+    difficulty = difficulty or cfg.get("difficulty", "easy")
+    tags = tags or cfg.get("tags", "")
+    adapter_id = adapter or cfg.get("adapter", "python-pymupdf")
+
+    # Validate required params
+    missing = []
+    if input_pdf is None:
+        missing.append("input")
+    if category is None:
+        missing.append("category")
+    if slug is None:
+        missing.append("slug")
+    if missing:
+        click.echo(
+            f"ERROR: missing required parameter(s): {', '.join(missing)}\n"
+            "Provide via CLI args or config file.",
+            err=True,
+        )
+        sys.exit(1)
+
+    from orchestrator.loader import compute_sha256, load_registry
+
+    corpus_dir = Path(corpus).resolve()
+    assert input_pdf is not None  # checked above
+    input_pdf = input_pdf.resolve()
+
+    if not input_pdf.exists():
+        click.echo(f"ERROR: input PDF not found: {input_pdf}", err=True)
+        sys.exit(1)
+
+    fixtures_dir = corpus_dir / "fixtures"
+    if not fixtures_dir.exists():
+        click.echo(f"ERROR: fixtures dir not found: {fixtures_dir}", err=True)
+        sys.exit(1)
+
+    # Resolve adapter (version-less → latest)
+    registry_path = corpus_dir.parent / "adapters" / "registry.json"
+    all_adapters = load_registry(registry_path)
+    from orchestrator.loader import filter_adapters
+
+    matched = filter_adapters(all_adapters, adapter_id)
+    if not matched:
+        click.echo(f"ERROR: adapter '{adapter_id}' not found in registry", err=True)
+        sys.exit(1)
+    adapter_entry = matched[0]
+
+    # Determine fixture id and directory
+    num = _CATEGORY_NUMBERS.get(category or "", "00")
+    fixture_id = f"{num}_{category}__{slug}"
+    fixture_dir = fixtures_dir / fixture_id
+
+    if fixture_dir.exists():
+        existing_files = [
+            f for f in fixture_dir.iterdir()
+            if f.name != ".gitkeep" and not f.name.startswith(".")
+        ]
+        if existing_files:
+            click.echo(
+                f"ERROR: fixture directory already exists and is not empty: {fixture_dir}",
+                err=True,
+            )
+            sys.exit(1)
+
+    fixture_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Copy PDF as input.pdf
+    import shutil
+    dest_pdf = fixture_dir / "input.pdf"
+    shutil.copy2(str(input_pdf), str(dest_pdf))
+
+    # 2. Compute sha256
+    sha256 = compute_sha256(dest_pdf)
+    click.echo(f"  sha256: {sha256}", err=True)
+
+    # 3. Generate expected.json by running the adapter
+    click.echo(f"  extracting text with adapter '{adapter_entry.id}'...", err=True)
+    expected = _generate_expected_via_adapter(dest_pdf, fixture_dir, adapter_entry, _SCHEMA_PATH)
+    if expected is None:
+        click.echo(
+            f"ERROR: adapter '{adapter_entry.id}' failed to produce valid result.json",
+            err=True,
+        )
+        sys.exit(1)
+    page_count = len(expected.get("pages", []))
+    click.echo(f"  pages: {page_count}", err=True)
+
+    (fixture_dir / "expected.json").write_text(
+        json.dumps(expected, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    # 4. Write meta.json (validated against fixture-meta.schema.json)
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    import datetime
+    today = datetime.date.today().isoformat()
+    meta = {
+        "fixture_id": fixture_id,
+        "category": category,
+        "tags": tag_list,
+        "difficulty": difficulty,
+        "expected_page_count": page_count,
+        "input_pdf_sha256": sha256,
+        "source": {
+            "title": title or input_pdf.stem,
+            "url": "",
+            "license": license_str,
+            "note": "",
+        },
+        "ground_truth_authors": [author] if author else [],
+        "revisions": [
+            {
+                "date": today,
+                "author": author or "unknown",
+                "note": f"initial version, extracted with {adapter_entry.id}",
+            }
+        ],
+    }
+    meta_errors = _validate_json(meta, _META_SCHEMA_PATH)
+    if meta_errors:
+        click.echo("ERROR: meta.json schema validation failed:", err=True)
+        for e in meta_errors:
+            click.echo(f"  {e}", err=True)
+        sys.exit(1)
+    (fixture_dir / "meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    # 5. Update manifest.json
+    manifest_path = corpus_dir / "manifest.json"
+    manifest: dict[str, Any] = {"$schema": "./manifest.schema.json"}
+    if manifest_path.exists():
+        with contextlib.suppress(json.JSONDecodeError, OSError):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    fixtures = manifest.get("fixtures", [])
+    fixtures = [f for f in fixtures if f.get("id") != fixture_id]
+    fixtures.append({
+        "id": fixture_id,
+        "path": f"fixtures/{fixture_id}/input.pdf",
+        "category": category,
+        "tags": tag_list,
+        "difficulty": difficulty,
+        "expected_page_count": page_count,
+        "sha256": sha256,
+        "source": {
+            "title": title or input_pdf.stem,
+            "license": license_str,
+        },
+        "notes": "",
+    })
+    manifest["fixtures"] = fixtures
+    manifest_errors = _validate_json(manifest, _MANIFEST_SCHEMA_PATH)
+    if manifest_errors:
+        click.echo("ERROR: manifest.json schema validation failed:", err=True)
+        for e in manifest_errors:
+            click.echo(f"  {e}", err=True)
+        sys.exit(1)
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    click.echo(
+        f"\nDone: fixture '{fixture_id}' created at {fixture_dir}",
+        err=True,
+    )
+    click.echo("  Run 'make validate-corpus' to verify.", err=True)
+
+
+def _generate_expected_via_adapter(
+    pdf_path: Path,
+    fixture_dir: Path,
+    adapter: AdapterEntry,
+    schema_path: Path,
+) -> dict[str, Any] | None:
+    """Run an adapter on a PDF and return its result.json as a dict.
+
+    Uses a temp output dir, validates against schema, returns None on failure.
+    """
+    import tempfile
+
+    from orchestrator.runner import _validate_result_schema
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_output = Path(tmpdir)
+        cfg = {"ocr": {"enabled": True}}
+        cmd = [
+            adapter.command,
+            "extract",
+            "--input", str(pdf_path),
+            "--output-dir", str(tmp_output),
+            "--config", json.dumps(cfg),
+            "--timeout", str(adapter.timeout_seconds),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=adapter.timeout_seconds + 10)
+        if result.returncode != 0:
+            click.echo(
+                f"  adapter stderr: {result.stderr[:500]}",
+                err=True,
+            )
+            return None
+
+        result_path = tmp_output / "result.json"
+        if not result_path.exists():
+            click.echo("  adapter did not produce result.json", err=True)
+            return None
+
+        data = json.loads(result_path.read_text(encoding="utf-8"))
+        if not _validate_result_schema(data, schema_path):
+            click.echo("  adapter result.json failed schema validation", err=True)
+            return None
+
+        return data  # type: ignore[no-any-return]
 
 
 def main() -> None:

@@ -2,5 +2,24 @@
   "$schema": "./manifest.schema.json",
   "schema_version": "1.0",
   "corpus_version": "0.1.0",
-  "fixtures": []
+  "fixtures": [
+    {
+      "id": "01_plain_text__resume",
+      "path": "fixtures/01_plain_text__resume/input.pdf",
+      "category": "plain_text",
+      "tags": [
+        "english",
+        "single_column"
+      ],
+      "difficulty": "easy",
+      "expected_page_count": 1,
+      "sha256": "7bab397f17be96d79a1d4baf3c5045e0d312188179fa02d12d081b0ec359eebc",
+      "source": {
+        "title": "Sample Resume",
+        "license": "internal"
+      },
+      "notes": ""
+    }
+  ]
 }
+

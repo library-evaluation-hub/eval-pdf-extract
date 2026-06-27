@@ -134,6 +134,7 @@ def write_scores_db(
             fixture_category TEXT NOT NULL,
             metric        TEXT NOT NULL,
             value         REAL,
+            value_text    TEXT,
             skipped       INTEGER NOT NULL DEFAULT 0
         )
     """)
@@ -151,17 +152,18 @@ def write_scores_db(
         for metric_id in ALL_METRIC_IDS:
             value = sr.metrics.get(metric_id)
             is_skipped = metric_id in sr.skipped_metrics or value is None
-            # For boolean/enum metrics, store as text via REAL cast
+            val: float | None = None
+            val_text: str | None = None
             if isinstance(value, bool):
-                val: float | None = 1.0 if value else 0.0
+                val = 1.0 if value else 0.0
             elif isinstance(value, (int, float)):
                 val = float(value)
-            else:
-                val = None  # string enums or None
+            elif isinstance(value, str):
+                val_text = value
             conn.execute(
-                "INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO scores VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (sr.adapter_id, sr.fixture_id, sr.fixture_category,
-                 metric_id, val, 1 if is_skipped else 0),
+                 metric_id, val, val_text, 1 if is_skipped else 0),
             )
     conn.commit()
     conn.close()

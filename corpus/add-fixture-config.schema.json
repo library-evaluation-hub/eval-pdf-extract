@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://library-evaluation-hub/eval-pdf-extract/add-fixture-config.schema.json",
+  "title": "Add-Fixture Config",
+  "description": "add-fixture 命令的 YAML 配置文件 schema。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "category", "slug"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "description": "PDF 文件路径（相对于项目根目录或绝对路径）。"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "plain_text",
+        "multi_column",
+        "table",
+        "form",
+        "scanned",
+        "multilang",
+        "edge"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "fixture slug，用于目录命名。"
+    },
+    "title": {
+      "type": "string",
+      "description": "文档标题。"
+    },
+    "license": {
+      "type": "string",
+      "description": "许可证标识。"
+    },
+    "author": {
+      "type": "string",
+      "description": "Ground truth 作者。"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"]
+    },
+    "tags": {
+      "type": "string",
+      "description": "逗号分隔的标签。"
+    },
+    "adapter": {
+      "type": "string",
+      "description": "用于生成 expected.json 的 adapter id（可省略版本号）。"
+    },
+    "corpus": {
+      "type": "string",
+      "description": "corpus 目录路径。"
+    }
+  }
+}

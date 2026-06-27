@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://library-evaluation-hub/eval-pdf-extract/fixture-meta.schema.json",
+  "title": "Fixture Meta",
+  "description": "每个 fixture 目录下 meta.json 的 schema。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixture_id",
+    "category",
+    "expected_page_count",
+    "input_pdf_sha256"
+  ],
+  "properties": {
+    "fixture_id": {
+      "type": "string",
+      "pattern": "^[0-9]{2}_[a-z_]+__[a-z0-9_]+$",
+      "description": "fixture 目录名；格式 `<两位编号>_<类别>__<slug>`。"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "plain_text",
+        "multi_column",
+        "table",
+        "form",
+        "scanned",
+        "multilang",
+        "edge"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "自由标签，如 ['english','single_column','font_serif']。"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"]
+    },
+    "expected_page_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "input_pdf_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "input.pdf 的 SHA-256（hex）。"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "license": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+    "ground_truth_authors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "author", "note"],
+        "properties": {
+          "date": { "type": "string", "description": "ISO 8601 日期。" },
+          "author": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

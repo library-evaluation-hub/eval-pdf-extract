@@ -123,6 +123,15 @@ def run_one(
         deadline = time.monotonic() + hard_timeout
         timed_out = False
 
+        # Sample memory immediately before any wait, so fast processes
+        # still get at least one memory reading.
+        try:
+            mem_info = p.memory_info()
+            if mem_info.rss > max_rss:
+                max_rss = mem_info.rss
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
         while p.poll() is None:
             if time.monotonic() > deadline:
                 timed_out = True
@@ -135,12 +144,14 @@ def run_one(
                 pass
             try:
                 p.wait(timeout=0.1)
-            except subprocess.TimeoutExpired:
+            except (subprocess.TimeoutExpired, psutil.TimeoutExpired):
                 continue
 
         if timed_out:
-            p.kill()
-            p.wait(timeout=5)
+            with contextlib.suppress(psutil.NoSuchProcess):
+                p.kill()
+            with contextlib.suppress(psutil.NoSuchProcess, subprocess.TimeoutExpired, psutil.TimeoutExpired):
+                p.wait(timeout=5)
 
         stdout_thread.join(timeout=5)
         stderr_thread.join(timeout=5)

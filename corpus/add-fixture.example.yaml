@@ -1,0 +1,35 @@
+# add-fixture 配置文件示例
+# 用法: make add-fixture CONFIG=corpus/add-fixture.yaml
+# 或:   uv run python -m orchestrator add-fixture --config corpus/add-fixture.yaml
+# CLI 参数会覆盖此文件中的值。
+
+# [必填] PDF 文件路径（相对于项目根目录或绝对路径）
+input: path/to/resume.pdf
+
+# [必填] fixture 类别（枚举: plain_text, multi_column, table, form, scanned, multilang, edge）
+category: plain_text
+
+# [必填] fixture slug，用于目录命名（如 resume, financial_report）
+slug: resume
+
+# [可选] 文档标题
+title: "Sample Resume"
+
+# [可选] 许可证（默认 unknown）
+license: internal
+
+# [可选] 作者
+author: your-name
+
+# [可选] 难度（easy/medium/hard，默认 easy）
+difficulty: easy
+
+# [可选] 逗号分隔的标签
+tags: english,single_column
+
+# [可选] 用于生成 expected.json 的 adapter id（默认 python-pymupdf）
+# 支持省略版本号，自动匹配 latest
+adapter: python-pymupdf
+
+# [可选] corpus 目录路径（默认 corpus/）
+corpus: corpus/

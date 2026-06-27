@@ -58,14 +58,12 @@ def score(
     expected_page_count = expected_meta.get("page_count", len(expected_pages))
 
     # --- Robustness metrics ---
+    # Always use len(pages) as the authoritative page count.
+    # metadata.page_count is self-reported by the adapter and can be spoofed.
     result_pages: list[dict[str, Any]] = []
-    result_page_count = 0
     if run_result.result_data is not None:
         result_pages = run_result.result_data.get("pages", [])
-        result_page_count = len(result_pages)
-        result_meta = run_result.result_data.get("metadata", {})
-        if result_meta.get("page_count") is not None:
-            result_page_count = result_meta["page_count"]
+    result_page_count = len(result_pages)
 
     metrics["success"] = compute_success(
         exit_code=run_result.exit_code,
