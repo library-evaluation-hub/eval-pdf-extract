@@ -7,6 +7,7 @@ Commands:
     validate-corpus   Validate corpus/manifest.json vs fixtures on disk.
     lint-adapter      Static check that an adapter conforms to the contract.
     add-fixture       Create a new fixture from a PDF file.
+    update-fixture    Regenerate expected.json for an existing fixture using a different adapter.
 """
 
 from __future__ import annotations
@@ -608,6 +609,129 @@ def add_fixture(
 
     click.echo(
         f"\nDone: fixture '{fixture_id}' created at {fixture_dir}",
+        err=True,
+    )
+    click.echo("  Run 'make validate-corpus' to verify.", err=True)
+
+
+@cli.command("update-fixture")
+@click.option("--fixture", "fixture_id", required=True,
+              help="Fixture id, e.g. '01_plain_text__resume'.")
+@click.option("--adapter", default="python-pymupdf",
+              help="Adapter id to use for regenerating expected.json. "
+                   "Supports version-less matching. Defaults to python-pymupdf.")
+@click.option("--corpus", default="corpus/", show_default=True,
+              help="Path to corpus directory.")
+@click.option("--note", default="",
+              help="Revision note for meta.json. Defaults to auto-generated.")
+def update_fixture(
+    fixture_id: str,
+    adapter: str,
+    corpus: str,
+    note: str,
+) -> None:
+    """Regenerate expected.json for an existing fixture using a different adapter.
+
+    Does NOT touch input.pdf or sha256. Only:
+    1. Re-runs the specified adapter on the existing input.pdf.
+    2. Overwrites expected.json with the new result.
+    3. Appends a revision entry to meta.json.
+    4. Updates manifest.json entry (page_count may change).
+    """
+    from orchestrator.loader import load_registry
+
+    corpus_dir = Path(corpus).resolve()
+    fixture_dir = corpus_dir / "fixtures" / fixture_id
+    input_pdf = fixture_dir / "input.pdf"
+
+    if not input_pdf.exists():
+        click.echo(f"ERROR: fixture not found: {fixture_dir}", err=True)
+        sys.exit(1)
+
+    # Resolve adapter
+    registry_path = corpus_dir.parent / "adapters" / "registry.json"
+    all_adapters = load_registry(registry_path)
+    from orchestrator.loader import filter_adapters
+
+    matched = filter_adapters(all_adapters, adapter)
+    if not matched:
+        click.echo(f"ERROR: adapter '{adapter}' not found in registry", err=True)
+        sys.exit(1)
+    adapter_entry = matched[0]
+
+    # 1. Regenerate expected.json
+    click.echo(f"  extracting text with adapter '{adapter_entry.id}'...", err=True)
+    expected = _generate_expected_via_adapter(input_pdf, fixture_dir, adapter_entry, _SCHEMA_PATH)
+    if expected is None:
+        click.echo(
+            f"ERROR: adapter '{adapter_entry.id}' failed to produce valid result.json",
+            err=True,
+        )
+        sys.exit(1)
+    page_count = len(expected.get("pages", []))
+    click.echo(f"  pages: {page_count}", err=True)
+
+    (fixture_dir / "expected.json").write_text(
+        json.dumps(expected, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    # 2. Append revision to meta.json
+    import datetime
+    today = datetime.date.today().isoformat()
+    meta_path = fixture_dir / "meta.json"
+    meta: dict[str, Any] = {}
+    if meta_path.exists():
+        with contextlib.suppress(json.JSONDecodeError, OSError):
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+
+    revisions = meta.get("revisions", [])
+    revisions.append({
+        "date": today,
+        "author": adapter_entry.id,
+        "note": note or f"regenerated expected.json with {adapter_entry.id}",
+    })
+    meta["revisions"] = revisions
+    meta["expected_page_count"] = page_count
+
+    meta_errors = _validate_json(meta, _META_SCHEMA_PATH)
+    if meta_errors:
+        click.echo("ERROR: meta.json schema validation failed:", err=True)
+        for e in meta_errors:
+            click.echo(f"  {e}", err=True)
+        sys.exit(1)
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    # 3. Update manifest.json entry
+    manifest_path = corpus_dir / "manifest.json"
+    manifest: dict[str, Any] = {"$schema": "./manifest.schema.json"}
+    if manifest_path.exists():
+        with contextlib.suppress(json.JSONDecodeError, OSError):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    fixtures = manifest.get("fixtures", [])
+    for f in fixtures:
+        if f.get("id") == fixture_id:
+            f["expected_page_count"] = page_count
+            break
+
+    manifest["fixtures"] = fixtures
+    manifest_errors = _validate_json(manifest, _MANIFEST_SCHEMA_PATH)
+    if manifest_errors:
+        click.echo("ERROR: manifest.json schema validation failed:", err=True)
+        for e in manifest_errors:
+            click.echo(f"  {e}", err=True)
+        sys.exit(1)
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    click.echo(
+        f"\nDone: fixture '{fixture_id}' updated (expected.json regenerated with {adapter_entry.id})",
         err=True,
     )
     click.echo("  Run 'make validate-corpus' to verify.", err=True)

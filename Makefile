@@ -33,7 +33,7 @@ UV ?= uv
 
 # ---- Phony -----------------------------------------------------------
 .PHONY: help info install check-env lint test integration-test run run-adapter webui \
-        validate-corpus add-fixture lint-adapter clean
+        validate-corpus add-fixture update-fixture lint-adapter clean
 
 # ---- Help ------------------------------------------------------------
 help:                       ## Show this help
@@ -48,6 +48,7 @@ help:                       ## Show this help
 	@echo "  webui                   Start webui server (default port 8765)"
 	@echo "  validate-corpus         Validate corpus/manifest.json vs fixtures on disk"
 	@echo "  add-fixture             Create a fixture from a PDF (use: make add-fixture INPUT=.. CATEGORY=.. SLUG=..)"
+	@echo "  update-fixture          Regenerate expected.json for a fixture (use: make update-fixture FIXTURE=.. ADAPTER=..)"
 	@echo "  lint-adapter ADAPTER=.. Static check that an adapter conforms to the contract"
 	@echo "  clean                   Remove build artifacts and results/ contents"
 	@echo "  info                    Show detected environment"
@@ -121,6 +122,13 @@ endif
 		$(if $(AUTHOR),--author $(AUTHOR)) $(if $(TAGS),--tags "$(TAGS)") \
 		$(if $(ADAPTER),--adapter $(ADAPTER))
 endif
+
+update-fixture:              ## Regenerate expected.json for a fixture (FIXTURE=.. [ADAPTER=..] [NOTE=..])
+ifndef FIXTURE
+	$(error Usage: make update-fixture FIXTURE=<fixture-id> [ADAPTER=<adapter-id>] [NOTE=..])
+endif
+	$(UV) run python -m orchestrator update-fixture --fixture $(FIXTURE) \
+		$(if $(ADAPTER),--adapter $(ADAPTER)) $(if $(NOTE),--note "$(NOTE)")
 
 lint-adapter:               ## Static check that an adapter conforms to the contract
 ifndef ADAPTER
