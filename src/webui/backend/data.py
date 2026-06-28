@@ -316,22 +316,33 @@ def get_fixture(fixture_id: str) -> dict[str, Any] | None:
 
 
 def get_compare_data(
-    run_id: str,
+    run_ids: list[str],
     fixture_ids: list[str],
     adapter_ids: list[str],
 ) -> dict[str, Any] | None:
-    """Get comparison data for given run, fixtures, and adapters.
+    """Get comparison data across multiple runs for given fixtures and adapters.
 
     Returns a dict with:
-    - fixtures: list of {fixture_id, expected, adapter_results: {adapter_id: {result, score}}}
+    - run_ids: list of run IDs that were found
+    - fixtures: list of {fixture_id, expected, adapter_results: {key: {run_id, adapter_id, result, score}}}
 
-    Returns None if the run_id does not exist.
+    The adapter_results key is "run_id/adapter_id" so the frontend can
+    distinguish results from different runs.
+
+    Identical adapter+fixture combinations across runs are deduplicated:
+    if the result.json content is identical, only the first occurrence is kept.
+
+    Returns None if none of the run_ids exist.
     """
-    run_dir = _results_root() / run_id
-    run_json = run_dir / "run.json"
-    if not run_json.exists():
+    results_root = _results_root()
+    valid_run_ids: list[str] = []
+    for rid in run_ids:
+        if (results_root / rid / "run.json").exists():
+            valid_run_ids.append(rid)
+    if not valid_run_ids:
         return None
-    result: dict[str, Any] = {"run_id": run_id, "fixtures": []}
+
+    result: dict[str, Any] = {"run_ids": valid_run_ids, "fixtures": []}
 
     for fid in fixture_ids:
         fixture_data: dict[str, Any] = {"fixture_id": fid, "adapter_results": {}}
@@ -341,35 +352,57 @@ def get_compare_data(
         expected_path = fixture_dir / "expected.json"
         if expected_path.exists():
             try:
-                fixture_data["expected"] = json.loads(expected_path.read_text(encoding="utf-8"))
+                fixture_data["expected"] = json.loads(
+                    expected_path.read_text(encoding="utf-8")
+                )
             except (json.JSONDecodeError, OSError):
                 fixture_data["expected"] = None
         else:
             fixture_data["expected"] = None
 
-        # Load each adapter's result
-        for aid in adapter_ids:
-            adapter_fixture_dir = run_dir / aid / fid
-            entry: dict[str, Any] = {}
-            result_path = adapter_fixture_dir / "result.json"
-            if result_path.exists():
-                try:
-                    entry["result"] = json.loads(result_path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError):
-                    entry["result"] = None
-            else:
-                entry["result"] = None
+        # Track seen result hashes for dedup: (adapter_id) -> serialized result
+        seen_results: dict[str, str] = {}
 
-            score_path = adapter_fixture_dir / "score.json"
-            if score_path.exists():
-                try:
-                    entry["score"] = json.loads(score_path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError):
-                    entry["score"] = None
-            else:
-                entry["score"] = None
+        for rid in valid_run_ids:
+            run_dir = results_root / rid
+            for aid in adapter_ids:
+                adapter_fixture_dir = run_dir / aid / fid
+                result_path = adapter_fixture_dir / "result.json"
 
-            fixture_data["adapter_results"][aid] = entry
+                if not result_path.exists():
+                    continue
+
+                result_data: Any = None
+                try:
+                    result_data = json.loads(
+                        result_path.read_text(encoding="utf-8")
+                    )
+                except (json.JSONDecodeError, OSError):
+                    result_data = None
+
+                # Dedup: skip if identical result already seen for this adapter
+                result_serialized = json.dumps(result_data, sort_keys=True) if result_data else ""
+                if aid in seen_results and seen_results[aid] == result_serialized:
+                    continue
+                seen_results[aid] = result_serialized
+
+                score_data: Any = None
+                score_path = adapter_fixture_dir / "score.json"
+                if score_path.exists():
+                    try:
+                        score_data = json.loads(
+                            score_path.read_text(encoding="utf-8")
+                        )
+                    except (json.JSONDecodeError, OSError):
+                        score_data = None
+
+                key = f"{rid}/{aid}"
+                fixture_data["adapter_results"][key] = {
+                    "run_id": rid,
+                    "adapter_id": aid,
+                    "result": result_data,
+                    "score": score_data,
+                }
 
         result["fixtures"].append(fixture_data)
 

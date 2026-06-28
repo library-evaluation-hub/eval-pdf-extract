@@ -99,14 +99,21 @@ export interface AdapterDetail extends AdapterInfo {
   }>;
 }
 
+export interface CompareAdapterResult {
+  run_id: string;
+  adapter_id: string;
+  result: ResultData | null;
+  score: ScoreData | null;
+}
+
 export interface CompareFixture {
   fixture_id: string;
   expected: ResultData | null;
-  adapter_results: Record<string, { result: ResultData | null; score: ScoreData | null }>;
+  adapter_results: Record<string, CompareAdapterResult>;
 }
 
 export interface CompareData {
-  run_id: string;
+  run_ids: string[];
   fixtures: CompareFixture[];
 }
 
@@ -120,9 +127,9 @@ export const api = {
   getAdapter: (adapterId: string) => fetchJSON<AdapterDetail>(`/adapters/${adapterId}`),
   listFixtures: () => fetchJSON<FixtureInfo[]>("/fixtures"),
   getFixture: (fixtureId: string) => fetchJSON<FixtureDetail>(`/fixtures/${fixtureId}`),
-  getCompare: (runId: string, fixtures: string[], adapters: string[]) =>
+  getCompare: (runIds: string[], fixtures: string[], adapters: string[]) =>
     fetchJSON<CompareData>(
-      `/compare?run_id=${encodeURIComponent(runId)}&fixtures=${encodeURIComponent(fixtures.join(","))}&adapters=${encodeURIComponent(adapters.join(","))}`,
+      `/compare?run_ids=${encodeURIComponent(runIds.join(","))}&fixtures=${encodeURIComponent(fixtures.join(","))}&adapters=${encodeURIComponent(adapters.join(","))}`,
     ),
 };
 

@@ -103,21 +103,22 @@ def get_fixture(fixture_id: str) -> dict[str, object]:
 
 @app.get("/api/compare")
 def get_compare(
-    run_id: str = Query(..., description="Run ID to compare within"),
+    run_ids: str = Query(..., description="Comma-separated run IDs to compare across"),
     fixtures: str = Query(..., description="Comma-separated fixture IDs"),
     adapters: str = Query(..., description="Comma-separated adapter IDs"),
 ) -> dict[str, object]:
-    """Get comparison data for given run, fixtures, and adapters."""
+    """Get comparison data across multiple runs for given fixtures and adapters."""
+    run_id_list = [r.strip() for r in run_ids.split(",") if r.strip()]
     fixture_ids = [f.strip() for f in fixtures.split(",") if f.strip()]
     adapter_ids = [a.strip() for a in adapters.split(",") if a.strip()]
-    if not fixture_ids or not adapter_ids:
+    if not run_id_list or not fixture_ids or not adapter_ids:
         raise HTTPException(
             status_code=400,
-            detail="Both 'fixtures' and 'adapters' must be non-empty",
+            detail="'run_ids', 'fixtures', and 'adapters' must all be non-empty",
         )
-    compare_data = data.get_compare_data(run_id, fixture_ids, adapter_ids)
+    compare_data = data.get_compare_data(run_id_list, fixture_ids, adapter_ids)
     if compare_data is None:
-        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+        raise HTTPException(status_code=404, detail="None of the run IDs were found")
     return compare_data
 
 

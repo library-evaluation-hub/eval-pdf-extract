@@ -5,7 +5,7 @@ export default function Compare() {
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [fixtures, setFixtures] = useState<FixtureInfo[]>([]);
   const [adapters, setAdapters] = useState<AdapterInfo[]>([]);
-  const [selectedRun, setSelectedRun] = useState("");
+  const [selectedRuns, setSelectedRuns] = useState<string[]>([]);
   const [selectedFixtures, setSelectedFixtures] = useState<string[]>([]);
   const [selectedAdapters, setSelectedAdapters] = useState<string[]>([]);
   const [compareData, setCompareData] = useState<CompareData | null>(null);
@@ -18,7 +18,7 @@ export default function Compare() {
         setRuns(r);
         setFixtures(f);
         setAdapters(a);
-        if (r.length > 0) setSelectedRun(r[0].run_id);
+        if (r.length > 0) setSelectedRuns([r[0].run_id]);
       },
     ).catch((e) => {
       setError(e.message);
@@ -26,16 +26,22 @@ export default function Compare() {
   }, []);
 
   const handleCompare = () => {
-    if (!selectedRun || selectedFixtures.length === 0 || selectedAdapters.length === 0) return;
+    if (selectedRuns.length === 0 || selectedFixtures.length === 0 || selectedAdapters.length === 0) return;
     setLoading(true);
     setError("");
-    api.getCompare(selectedRun, selectedFixtures, selectedAdapters).then((data) => {
+    api.getCompare(selectedRuns, selectedFixtures, selectedAdapters).then((data) => {
       setCompareData(data);
       setLoading(false);
     }).catch((e) => {
       setError(e.message);
       setLoading(false);
     });
+  };
+
+  const toggleRun = (id: string) => {
+    setSelectedRuns((prev) =>
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
+    );
   };
 
   const toggleFixture = (id: string) => {
@@ -57,16 +63,20 @@ export default function Compare() {
       {/* Selection panel */}
       <div className="mb-6 grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Run</label>
-          <select
-            value={selectedRun}
-            onChange={(e) => setSelectedRun(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white"
-          >
+          <label className="block text-xs font-medium text-gray-600 mb-1">Runs</label>
+          <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto text-sm">
             {runs.map((r) => (
-              <option key={r.run_id} value={r.run_id}>{r.run_id}</option>
+              <label key={r.run_id} className="flex items-center px-2 py-1 hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedRuns.includes(r.run_id)}
+                  onChange={() => toggleRun(r.run_id)}
+                  className="mr-2"
+                />
+                <span className="font-mono text-xs">{r.run_id}</span>
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Fixtures</label>
@@ -104,7 +114,7 @@ export default function Compare() {
 
       <button
         onClick={handleCompare}
-        disabled={!selectedRun || selectedFixtures.length === 0 || selectedAdapters.length === 0}
+        disabled={selectedRuns.length === 0 || selectedFixtures.length === 0 || selectedAdapters.length === 0}
         className="mb-6 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Compare
@@ -115,7 +125,9 @@ export default function Compare() {
 
       {compareData && (
         <div className="space-y-6">
-          {compareData.fixtures.map((fixture) => (
+          {compareData.fixtures.map((fixture) => {
+            const resultKeys = Object.keys(fixture.adapter_results);
+            return (
             <div key={fixture.fixture_id} className="border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
                 <h3 className="font-mono text-sm font-medium text-gray-900">{fixture.fixture_id}</h3>
@@ -124,19 +136,21 @@ export default function Compare() {
                 {fixture.expected?.pages.map((page, pageIdx) => (
                   <div key={pageIdx} className="mb-4 last:mb-0">
                     <div className="text-xs font-medium text-gray-500 mb-2">Page {page.page_number}</div>
-                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${selectedAdapters.length + 1}, minmax(0, 1fr))` }}>
+                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${resultKeys.length + 1}, minmax(0, 1fr))` }}>
                       {/* Expected column */}
                       <div className="border border-gray-200 rounded p-2 bg-gray-50">
                         <div className="text-xs font-medium text-gray-600 mb-1">Expected</div>
                         <PageTextView page={page} />
                       </div>
-                      {/* Adapter columns */}
-                      {selectedAdapters.map((aid) => {
-                        const result = fixture.adapter_results[aid]?.result;
-                        const adapterPage = result?.pages.find((p) => p.page_number === page.page_number);
+                      {/* Adapter columns (keyed by run_id/adapter_id) */}
+                      {resultKeys.map((key) => {
+                        const entry = fixture.adapter_results[key];
+                        const adapterPage = entry.result?.pages.find((p) => p.page_number === page.page_number);
                         return (
-                          <div key={aid} className="border border-gray-200 rounded p-2">
-                            <div className="text-xs font-medium text-blue-600 mb-1 font-mono">{aid}</div>
+                          <div key={key} className="border border-gray-200 rounded p-2">
+                            <div className="text-xs font-medium text-blue-600 mb-1 font-mono">
+                              {entry.run_id}/{entry.adapter_id}
+                            </div>
                             {adapterPage ? (
                               <PageTextView page={adapterPage} expectedPage={page} />
                             ) : (
@@ -150,7 +164,8 @@ export default function Compare() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
