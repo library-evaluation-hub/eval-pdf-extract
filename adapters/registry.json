@@ -66,6 +66,15 @@
       "supports_ocr": false
     },
     {
+      "id": "nodejs-unpdf@1.6.2",
+      "language": "javascript",
+      "command": "nodejs-unpdf",
+      "description": "unpdf (unjs, serverless pdf.js wrapper)",
+      "homepage": "https://github.com/unjs/unpdf",
+      "timeout_seconds": 60,
+      "supports_ocr": false
+    },
+    {
       "id": "go-ledongthuc@0.0.0",
       "language": "go",
       "command": "go-ledongthuc",

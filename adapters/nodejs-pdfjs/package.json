@@ -1,0 +1,11 @@
+{
+  "name": "nodejs-pdfjs-adapter",
+  "version": "4.0.379",
+  "description": "Mozilla pdf.js adapter for eval-pdf-extract (direct pdfjs-dist)",
+  "bin": {
+    "nodejs-pdfjs": "./main.js"
+  },
+  "dependencies": {
+    "pdfjs-dist": "4.0.379"
+  }
+}

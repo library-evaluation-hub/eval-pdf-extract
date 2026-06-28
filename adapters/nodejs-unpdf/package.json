@@ -1,0 +1,11 @@
+{
+  "name": "nodejs-unpdf-adapter",
+  "version": "1.6.2",
+  "description": "unpdf adapter for eval-pdf-extract (unjs/unpdf)",
+  "bin": {
+    "nodejs-unpdf": "./main.js"
+  },
+  "dependencies": {
+    "unpdf": "1.6.2"
+  }
+}
