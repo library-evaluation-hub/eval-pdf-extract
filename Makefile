@@ -33,7 +33,7 @@ UV ?= uv
 
 # ---- Phony -----------------------------------------------------------
 .PHONY: help info install check-env lint test integration-test run run-adapter webui \
-        validate-corpus add-fixture update-fixture lint-adapter clean
+        webui-dev webui-build webui-install validate-corpus add-fixture update-fixture lint-adapter clean
 
 # ---- Help ------------------------------------------------------------
 help:                       ## Show this help
@@ -46,6 +46,9 @@ help:                       ## Show this help
 	@echo "  run                     Run benchmark with all adapters on all fixtures"
 	@echo "  run-adapter ADAPTER=.. Run benchmark for a single adapter on 01_* fixtures"
 	@echo "  webui                   Start webui server (default port 8765)"
+	@echo "  webui-install           Install frontend npm dependencies"
+	@echo "  webui-build             Build frontend (npm run build)"
+	@echo "  webui-dev               Start both backend + Vite dev server (use two terminals)"
 	@echo "  validate-corpus         Validate corpus/manifest.json vs fixtures on disk"
 	@echo "  add-fixture             Create a fixture from a PDF (use: make add-fixture INPUT=.. CATEGORY=.. SLUG=..)"
 	@echo "  update-fixture          Regenerate expected.json for a fixture (use: make update-fixture FIXTURE=.. ADAPTER=..)"
@@ -93,7 +96,18 @@ ifndef ADAPTER
 endif
 	$(UV) run python -m orchestrator run --corpus corpus/ --adapters $(ADAPTER) --fixture-glob "01_*" --workers 1
 
-webui:                      ## Start webui server
+webui:                      ## Start webui server (serves built frontend from dist/)
+	$(UV) run python -m webui.backend.main --host 127.0.0.1 --port 8765
+
+webui-install:              ## Install frontend npm dependencies
+	cd webui/frontend && npm install
+
+webui-build:                ## Build frontend (npm run build)
+	cd webui/frontend && npm run build
+
+webui-dev:                  ## Start backend only (run 'npm run dev' in webui/frontend/ separately)
+	@echo "Starting backend on http://127.0.0.1:8765"
+	@echo "In another terminal: cd webui/frontend && npm run dev"
 	$(UV) run python -m webui.backend.main --host 127.0.0.1 --port 8765
 
 # ---- Validation ------------------------------------------------------

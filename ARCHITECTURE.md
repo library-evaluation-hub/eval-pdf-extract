@@ -405,7 +405,11 @@ GPU / IO 敏感 adapter 可通过 `--serialize <adapter_id>` 单独排队。
 
 ## 8. Web UI
 
-技术选型：**FastAPI + 静态 HTML/JS**（不引入前端框架，避免体积膨胀；如未来需要再考虑 Preact / Svelte）。
+技术选型：**FastAPI 后端 + React SPA 前端**（Vite 构建 + Tailwind CSS）。
+
+- 后端（`src/webui/backend/`）：FastAPI 提供 JSON API，构建后 serve `webui/frontend/dist/`。
+- 前端（`webui/frontend/`）：Vite + React + Tailwind CSS，`npm run dev` 时 proxy `/api` 到 FastAPI。
+- 不做 SSR；纯客户端渲染，数据全部通过 `/api/*` 获取。
 
 页面：
 
