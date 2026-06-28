@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type RunInfo, type FixtureInfo, type AdapterInfo, type CompareData, type PageData } from "../api";
 
+type DiffMode = "text" | "diff";
+
 export default function Compare() {
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [fixtures, setFixtures] = useState<FixtureInfo[]>([]);
@@ -11,6 +13,7 @@ export default function Compare() {
   const [compareData, setCompareData] = useState<CompareData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [diffMode, setDiffMode] = useState<DiffMode>("text");
 
   useEffect(() => {
     Promise.all([api.listRuns(), api.listFixtures(), api.listAdapters()]).then(
@@ -112,13 +115,35 @@ export default function Compare() {
         </div>
       </div>
 
-      <button
-        onClick={handleCompare}
-        disabled={selectedRuns.length === 0 || selectedFixtures.length === 0 || selectedAdapters.length === 0}
-        className="mb-6 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Compare
-      </button>
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleCompare}
+          disabled={selectedRuns.length === 0 || selectedFixtures.length === 0 || selectedAdapters.length === 0}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Compare
+        </button>
+        {compareData && (
+          <div className="flex items-center gap-1 ml-2">
+            <span className="text-xs text-gray-500 mr-1">View:</span>
+            <button
+              type="button"
+              onClick={() => setDiffMode("text")}
+              className={`px-2.5 py-1 text-xs rounded-md ${diffMode === "text" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            >
+              Plain text
+            </button>
+            <button
+              type="button"
+              onClick={() => setDiffMode("diff")}
+              className={`px-2.5 py-1 text-xs rounded-md ${diffMode === "diff" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            >
+              Diff
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading && <div className="text-gray-500">Loading...</div>}
       {error && <div className="text-red-600">Error: {error}</div>}
@@ -140,7 +165,7 @@ export default function Compare() {
                       {/* Expected column */}
                       <div className="border border-gray-200 rounded p-2 bg-gray-50">
                         <div className="text-xs font-medium text-gray-600 mb-1">Expected</div>
-                        <PageTextView page={page} />
+                        <PageTextView page={page} mode="text" />
                       </div>
                       {/* Adapter columns (keyed by run_id/adapter_id) */}
                       {resultKeys.map((key) => {
@@ -152,7 +177,7 @@ export default function Compare() {
                               {entry.run_id}/{entry.adapter_id}
                             </div>
                             {adapterPage ? (
-                              <PageTextView page={adapterPage} expectedPage={page} />
+                              <PageTextView page={adapterPage} expectedPage={page} mode={diffMode} />
                             ) : (
                               <div className="text-xs text-gray-400 italic">No data</div>
                             )}
@@ -172,28 +197,26 @@ export default function Compare() {
   );
 }
 
-function PageTextView({ page, expectedPage }: { page: PageData; expectedPage?: PageData }) {
+function PageTextView({ page, expectedPage, mode }: { page: PageData; expectedPage?: PageData; mode: DiffMode }) {
   const text = page.text || "";
-  if (!expectedPage) {
+  if (mode === "text" || !expectedPage) {
     return <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{text}</pre>;
   }
-  // Simple diff: highlight differences character by character
   const expectedText = expectedPage.text || "";
   return <DiffView expected={expectedText} actual={text} />;
 }
 
 function DiffView({ expected, actual }: { expected: string; actual: string }) {
-  const expectedWords = expected.split(/(\s+)/);
-  const actualWords = actual.split(/(\s+)/);
+  const expectedLines = expected.split("\n");
+  const actualLines = actual.split("\n");
 
-  // LCS-based diff (Myers algorithm simplified)
-  const m = expectedWords.length;
-  const n = actualWords.length;
-  // dp[i][j] = LCS length of expectedWords[i..] and actualWords[j..]
+  // LCS-based line-level diff
+  const m = expectedLines.length;
+  const n = actualLines.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = m - 1; i >= 0; i--) {
     for (let j = n - 1; j >= 0; j--) {
-      if (expectedWords[i] === actualWords[j]) {
+      if (expectedLines[i] === actualLines[j]) {
         dp[i][j] = dp[i + 1][j + 1] + 1;
       } else {
         dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
@@ -201,45 +224,55 @@ function DiffView({ expected, actual }: { expected: string; actual: string }) {
     }
   }
 
-  // Backtrack to produce diff tokens
-  const tokens: Array<{ type: "same" | "added" | "removed"; text: string }> = [];
+  type LineEntry = { type: "same" | "added" | "removed"; text: string };
+  const lines: LineEntry[] = [];
   let i = 0, j = 0;
   while (i < m && j < n) {
-    if (expectedWords[i] === actualWords[j]) {
-      tokens.push({ type: "same", text: expectedWords[i] });
+    if (expectedLines[i] === actualLines[j]) {
+      lines.push({ type: "same", text: expectedLines[i] });
       i++;
       j++;
     } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      tokens.push({ type: "removed", text: expectedWords[i] });
+      lines.push({ type: "removed", text: expectedLines[i] });
       i++;
     } else {
-      tokens.push({ type: "added", text: actualWords[j] });
+      lines.push({ type: "added", text: actualLines[j] });
       j++;
     }
   }
   while (i < m) {
-    tokens.push({ type: "removed", text: expectedWords[i] });
+    lines.push({ type: "removed", text: expectedLines[i] });
     i++;
   }
   while (j < n) {
-    tokens.push({ type: "added", text: actualWords[j] });
+    lines.push({ type: "added", text: actualLines[j] });
     j++;
   }
 
   return (
-    <div className="text-xs font-mono whitespace-pre-wrap">
-      {tokens.map((tok, idx) => (
-        <span
-          key={idx}
-          className={
-            tok.type === "same" ? "text-gray-700" :
-            tok.type === "added" ? "text-green-700 bg-green-50" :
-            "text-red-700 bg-red-50 line-through"
-          }
-        >
-          {tok.text}
-        </span>
-      ))}
+    <div className="text-xs font-mono leading-relaxed">
+      {lines.map((line, idx) => {
+        const prefix = line.type === "same" ? " " : line.type === "removed" ? "-" : "+";
+        if (line.type === "same") {
+          return (
+            <div key={idx} className="text-gray-400 whitespace-pre-wrap">
+              <span className="select-none text-gray-300 mr-1">{prefix}</span>{line.text}
+            </div>
+          );
+        }
+        if (line.type === "removed") {
+          return (
+            <div key={idx} className="text-red-800 bg-red-50 whitespace-pre-wrap border-l-2 border-red-400 pl-1">
+              <span className="select-none text-red-400 mr-1">{prefix}</span>{line.text}
+            </div>
+          );
+        }
+        return (
+          <div key={idx} className="text-green-800 bg-green-50 whitespace-pre-wrap border-l-2 border-green-400 pl-1">
+            <span className="select-none text-green-400 mr-1">{prefix}</span>{line.text}
+          </div>
+        );
+      })}
     </div>
   );
 }

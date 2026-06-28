@@ -64,10 +64,10 @@ export default function Dashboard() {
         <div className="text-gray-500 text-sm">No scores found for this run.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border border-gray-200">
+          <table className="min-w-full text-sm border border-gray-200 border-separate border-spacing-0">
             <thead>
               <tr className="bg-gray-100 border-b border-gray-200">
-                <th className="text-left px-3 py-2 font-medium text-gray-700">Adapter</th>
+                <th className="text-left px-3 py-2 font-medium text-gray-700 sticky left-0 bg-gray-100 z-10">Adapter</th>
                 {METRIC_IDS.map((m) => (
                   <th key={m} className="text-right px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
                     <span title={METRIC_CATEGORIES[m]} className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
@@ -87,7 +87,7 @@ export default function Dashboard() {
             <tbody>
               {leaderboard.map((entry) => (
                 <tr key={entry.adapter_id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-3 py-2 font-mono text-xs text-blue-600">
+                  <td className="px-3 py-2 font-mono text-xs text-blue-600 sticky left-0 bg-white z-10 group-hover:bg-gray-50">
                     <Link to={`/adapter/${entry.adapter_id}`} className="hover:underline">{entry.adapter_id}</Link>
                   </td>
                   {METRIC_IDS.map((m) => {
