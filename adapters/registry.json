@@ -48,11 +48,11 @@
       "supports_ocr": true
     },
     {
-      "id": "nodejs-pdf-parse@1.1.1",
+      "id": "nodejs-pdf-parse@2.4.5",
       "language": "javascript",
       "command": "nodejs-pdf-parse",
-      "description": "pdf-parse (modest pdfjs fork)",
-      "homepage": "https://github.com/modesty/pdf-parse",
+      "description": "pdf-parse (mehmet-kozan, pdfjs-based)",
+      "homepage": "https://github.com/mehmet-kozan/pdf-parse",
       "timeout_seconds": 60,
       "supports_ocr": false
     },

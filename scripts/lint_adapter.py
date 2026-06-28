@@ -71,6 +71,7 @@ def check_command_runs(cmd: str) -> list[str]:
             capture_output=True,
             text=True,
             timeout=HELP_TIMEOUT_S,
+            shell=sys.platform == "win32",
         )
     except subprocess.TimeoutExpired:
         return [f"[C2] '{cmd} --help' timed out after {HELP_TIMEOUT_S}s"]

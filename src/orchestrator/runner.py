@@ -95,6 +95,7 @@ def run_one(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            shell=os.name == "nt",
         )
         # Drain pipes on background threads to avoid deadlock when
         # adapter output exceeds OS pipe buffer (~64 KB).

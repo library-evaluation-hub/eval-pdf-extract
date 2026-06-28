@@ -1,0 +1,11 @@
+{
+  "name": "nodejs-pdf-parse-adapter",
+  "version": "2.4.5",
+  "description": "pdf-parse adapter for eval-pdf-extract (mehmet-kozan)",
+  "bin": {
+    "nodejs-pdf-parse": "./main.js"
+  },
+  "dependencies": {
+    "pdf-parse": "2.4.5"
+  }
+}
