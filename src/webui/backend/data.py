@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import shutil
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -166,6 +167,7 @@ def list_adapters() -> list[dict[str, Any]]:
             "timeout_seconds": a.timeout_seconds,
             "supports_ocr": a.supports_ocr,
             "disabled": a.disabled,
+            "implemented": shutil.which(a.command) is not None,
         }
         for a in adapters
     ]

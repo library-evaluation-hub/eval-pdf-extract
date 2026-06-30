@@ -26,6 +26,7 @@ export interface AdapterInfo {
   timeout_seconds: number;
   supports_ocr: boolean;
   disabled: boolean;
+  implemented: boolean;
 }
 
 export interface FixtureInfo {

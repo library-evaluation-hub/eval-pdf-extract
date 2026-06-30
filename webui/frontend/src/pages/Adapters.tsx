@@ -35,11 +35,12 @@ export default function Adapters() {
               <th className="text-right px-3 py-2 font-medium text-gray-700">Timeout</th>
               <th className="text-center px-3 py-2 font-medium text-gray-700">OCR</th>
               <th className="text-center px-3 py-2 font-medium text-gray-700">Disabled</th>
+              <th className="text-center px-3 py-2 font-medium text-gray-700">Status</th>
             </tr>
           </thead>
           <tbody>
             {adapters.map((a) => (
-              <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50">
+              <tr key={a.id} className={`border-b border-gray-100 ${a.implemented ? "hover:bg-gray-50" : "opacity-50"}`}>
                 <td className="px-3 py-2 font-mono text-xs">
                   <Link to={`/adapter/${a.id}`} className="text-blue-600 hover:underline">{a.id}</Link>
                 </td>
@@ -48,6 +49,11 @@ export default function Adapters() {
                 <td className="text-right px-3 py-2 font-mono">{a.timeout_seconds}s</td>
                 <td className="text-center px-3 py-2">{a.supports_ocr ? "✓" : "—"}</td>
                 <td className="text-center px-3 py-2">{a.disabled ? "✓" : "—"}</td>
+                <td className="text-center px-3 py-2">
+                  {a.implemented
+                    ? <span className="text-green-600 text-xs">Implemented</span>
+                    : <span className="text-gray-400 text-xs">Not implemented</span>}
+                </td>
               </tr>
             ))}
           </tbody>

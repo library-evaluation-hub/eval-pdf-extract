@@ -100,15 +100,15 @@ export default function Compare() {
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Adapters</label>
           <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto text-sm">
-            {adapters.map((a) => (
-              <label key={a.id} className="flex items-center px-2 py-1 hover:bg-gray-50 cursor-pointer">
+            {[...adapters].sort((a, b) => Number(b.implemented) - Number(a.implemented)).map((a) => (
+              <label key={a.id} className={`flex items-center px-2 py-1 hover:bg-gray-50 cursor-pointer ${a.implemented ? "" : "opacity-50"}`}>
                 <input
                   type="checkbox"
                   checked={selectedAdapters.includes(a.id)}
                   onChange={() => toggleAdapter(a.id)}
                   className="mr-2"
                 />
-                <span className="font-mono text-xs">{a.id}</span>
+                <span className={`font-mono text-xs ${a.implemented ? "text-gray-700" : "text-gray-400"}`}>{a.id}</span>
               </label>
             ))}
           </div>
