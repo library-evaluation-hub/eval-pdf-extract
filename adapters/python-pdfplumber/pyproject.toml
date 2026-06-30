@@ -1,0 +1,18 @@
+[project]
+name = "python-pdfplumber-adapter"
+version = "0.11.0"
+description = "pdfplumber adapter for eval-pdf-extract"
+requires-python = ">=3.10"
+dependencies = [
+    "pdfplumber>=0.11.0",
+]
+
+[project.scripts]
+python-pdfplumber = "adapter.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adapter"]
