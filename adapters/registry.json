@@ -118,6 +118,15 @@
       "homepage": "https://mupdf.com/",
       "timeout_seconds": 60,
       "supports_ocr": false
+    },
+    {
+      "id": "bin-xpdf@4.06",
+      "language": "other",
+      "command": "bin-xpdf",
+      "description": "Xpdf pdftotext (standalone binary)",
+      "homepage": "https://www.xpdfreader.com/",
+      "timeout_seconds": 60,
+      "supports_ocr": false
     }
   ]
 }

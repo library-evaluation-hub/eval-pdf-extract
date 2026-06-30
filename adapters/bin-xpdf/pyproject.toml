@@ -1,0 +1,16 @@
+[project]
+name = "bin-xpdf-adapter"
+version = "4.06"
+description = "Xpdf pdftotext adapter for eval-pdf-extract"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+bin-xpdf = "adapter.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adapter"]
